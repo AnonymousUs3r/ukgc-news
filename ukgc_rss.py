@@ -23,7 +23,7 @@ async def main():
 
     print("🔍 Parsing HTML...")
     soup = BeautifulSoup(content, "html.parser")
-    articles = soup.select("ul.gc-news-list > li")
+    articles = soup.select("li.gcweb-card")
 
     fg = FeedGenerator()
     fg.id(url)
@@ -33,37 +33,37 @@ async def main():
     fg.language("en")
 
     for item in articles:
-        a_tag = item.select_one("a")
-        time_tag = item.select_one("time")
-
-        if not a_tag or not time_tag:
+        anchor = item.select_one("a.text.text-top")
+        if not anchor:
             continue
 
-        title = a_tag.get_text(strip=True)
-        href = a_tag["href"]
-        full_link = "https://www.gamblingcommission.gov.uk" + href if href.startswith("/") else href
+        href = anchor.get("href", "")
+        full_link = "https://www.gamblingcommission.gov.uk" + href
 
-        raw_date = time_tag.get("datetime", "")
+        title_elem = anchor.select_one("h2")
+        title = title_elem.get_text(strip=True) if title_elem else "Untitled"
+
+        paragraphs = anchor.select("p")
+        date_text = paragraphs[-1].get_text(strip=True) if paragraphs else None
+
         try:
-            pub_dt = datetime.fromisoformat(raw_date).replace(tzinfo=timezone.utc)
-            pub_dt = pub_dt.replace(hour=23, minute=59, second=0)
+            dt = datetime.strptime(date_text, "%d %B %Y")
+            pub_date = datetime(dt.year, dt.month, dt.day, 23, 59, 0, tzinfo=timezone.utc)
         except Exception as e:
-            print(f"⚠️ Date parse failed: {raw_date} ({e})")
-            pub_dt = datetime.now(timezone.utc)
+            print(f"⚠️ Could not parse date '{date_text}': {e}")
+            pub_date = datetime.now(timezone.utc)
 
-        # Stable GUID from title + link
-        guid_source = f"{title}{full_link}"
-        guid_hash = hashlib.md5(guid_source.encode("utf-8")).hexdigest()
+        guid = hashlib.md5((title + full_link).encode("utf-8")).hexdigest()
 
         entry = fg.add_entry()
-        entry.id(guid_hash)
-        entry.guid(guid_hash, permalink=False)
+        entry.id(guid)
+        entry.guid(guid, permalink=False)
         entry.title(title)
         entry.link(href=full_link)
-        entry.pubDate(pub_dt)
-        entry.updated(pub_dt)
+        entry.pubDate(pub_date)
+        entry.updated(pub_date)
 
-        print(f"✅ Added: {title} – {pub_dt.isoformat()}")
+        print(f"✅ Added: {title} — {pub_date.isoformat()}")
 
     fg.rss_file(filename)
     print(f"📄 Feed saved to: {filename}")
