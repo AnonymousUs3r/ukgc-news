@@ -40,19 +40,22 @@ async def main():
         href = anchor.get("href", "")
         full_link = "https://www.gamblingcommission.gov.uk" + href
 
-        title_elem = anchor.select_one("h2")
+        # ✅ Improved title extraction
+        title_elem = anchor.select_one("h2.news-link-text")
         title = title_elem.get_text(strip=True) if title_elem else "Untitled"
 
-        paragraphs = anchor.select("p")
-        date_text = paragraphs[-1].get_text(strip=True) if paragraphs else None
+        # ✅ Safe and consistent date extraction
+        p_tags = anchor.select("p")
+        date_text = p_tags[-1].get_text(strip=True) if p_tags else None
 
         try:
             dt = datetime.strptime(date_text, "%d %B %Y")
             pub_date = datetime(dt.year, dt.month, dt.day, 23, 59, 0, tzinfo=timezone.utc)
         except Exception as e:
-            print(f"⚠️ Could not parse date '{date_text}': {e}")
+            print(f"⚠️ Date parse failed for '{title}': {e}")
             pub_date = datetime.now(timezone.utc)
 
+        # 🔐 Stable GUID
         guid = hashlib.md5((title + full_link).encode("utf-8")).hexdigest()
 
         entry = fg.add_entry()
@@ -63,7 +66,7 @@ async def main():
         entry.pubDate(pub_date)
         entry.updated(pub_date)
 
-        print(f"✅ Added: {title} — {pub_date.isoformat()}")
+        print(f"✅ {title} — {pub_date.date()}")
 
     fg.rss_file(filename)
     print(f"📄 Feed saved to: {filename}")
