@@ -24,10 +24,8 @@ async def main():
     print("🔍 Parsing HTML...")
     soup = BeautifulSoup(content, "html.parser")
 
-    # 📛 Find the e-bulletin heading to cut off everything that follows
+    # 🧹 Cut off entries below the "e-bulletin updates" section
     cutoff_heading = soup.find("h3", string=re.compile(r"e-bulletin updates", re.I))
-
-    # ✂️ Select cards only BEFORE the e-bulletin section
     articles = []
     for card in soup.select("li.gcweb-card"):
         if cutoff_heading and card.sourceline and cutoff_heading.sourceline and card.sourceline > cutoff_heading.sourceline:
@@ -49,10 +47,14 @@ async def main():
         href = anchor.get("href", "")
         full_link = "https://www.gamblingcommission.gov.uk" + href
 
-        # 🎯 Final title selector (confirmed)
-        title_elem = anchor.select_one("p.gc-card__description.gcweb-heading-m")
+        # 🧠 Extract title from <p> or fallback to <h2>
+        title_elem = (
+            anchor.select_one("p.gc-card__description.gcweb-heading-m")
+            or anchor.select_one("h2.gc-card__description")
+        )
         title = title_elem.get_text(strip=True) if title_elem else "Untitled"
 
+        # 📆 Extract and parse publication date
         p_tags = anchor.select("p")
         date_text = p_tags[-1].get_text(strip=True) if p_tags else None
 
