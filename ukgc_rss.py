@@ -40,11 +40,11 @@ async def main():
         href = anchor.get("href", "")
         full_link = "https://www.gamblingcommission.gov.uk" + href
 
-        # ✅ Improved title extraction
-        title_elem = anchor.select_one("h2.news-link-text")
+        # 🔧 Correct title extraction from <p class="gc-card__description gcweb-heading-m">
+        title_elem = anchor.select_one("p.gc-card__description.gcweb-heading-m")
         title = title_elem.get_text(strip=True) if title_elem else "Untitled"
 
-        # ✅ Safe and consistent date extraction
+        # 🗓️ Extract publication date from final <p>
         p_tags = anchor.select("p")
         date_text = p_tags[-1].get_text(strip=True) if p_tags else None
 
@@ -55,7 +55,6 @@ async def main():
             print(f"⚠️ Date parse failed for '{title}': {e}")
             pub_date = datetime.now(timezone.utc)
 
-        # 🔐 Stable GUID
         guid = hashlib.md5((title + full_link).encode("utf-8")).hexdigest()
 
         entry = fg.add_entry()
